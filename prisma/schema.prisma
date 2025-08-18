@@ -1,0 +1,14 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SUPABASE_DATABASE_URL")
+}
+
+// Minimal model for now
+model UserProfile {
+  id    String @id @default(uuid())
+  email String @unique
+}
