@@ -1,0 +1,51 @@
+# .github/workflows/test.yml
+name: Run Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit + Lint + Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Prettier check
+        run: npm run prettier:check
+
+      - name: Type check via build dry-run
+        run: npm run build --dry-run
+
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: ./coverage/
+          fail_ci_if_error: true
+          verbose: true
+
