@@ -5,10 +5,71 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("SUPABASE_DATABASE_URL")
+  schemas  = ["public", "auth"]
 }
 
-// Minimal model for now
-model UserProfile {
-  id    String @id @default(uuid())
-  email String @unique
+// Note: Supabase manages users in the auth.users table
+// We can create our own profile extension in the public schema
+model Profile {
+  id         String   @id @default(uuid())
+  user_id    String   @unique
+  first_name String?
+  last_name  String?
+  avatar_url String?
+  phone      String?
+  timezone   String   @default("UTC")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  // Relations
+  habits     Habit[]
+  habit_logs HabitLog[]
+
+  @@map("profiles")
+  @@schema("public")
+}
+
+// Predefined and custom habits
+model Habit {
+  id           String    @id @default(uuid())
+  user_id      String
+  name         String
+  description  String?
+  color        String    @default("#3B82F6") // Hex color for UI
+  frequency    String    @default("daily") // daily, weekly, monthly
+  target_count Int       @default(1) // How many times per frequency period
+  is_custom    Boolean   @default(false) // true for user-created habits
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  
+  // Relations
+  profile    Profile    @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  logs       HabitLog[]
+  
+  @@index([user_id, is_active])
+  @@map("habits")
+  @@schema("public")
+}
+
+// Daily habit completion tracking
+model HabitLog {
+  id         String   @id @default(uuid())
+  habit_id   String
+  user_id    String
+  date       DateTime @db.Date // Just the date, no time
+  completed  Boolean  @default(false)
+  count      Int      @default(0) // How many times completed that day
+  notes      String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  // Relations
+  habit   Habit   @relation(fields: [habit_id], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  
+  @@unique([habit_id, date]) // One log per habit per date
+  @@index([user_id, date])
+  @@map("habit_logs")
+  @@schema("public")
 }
